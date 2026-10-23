@@ -1,5 +1,7 @@
 # book-to-markdown
 
+**English** | [简体中文](README.zh-CN.md)
+
 Convert books to clean single-file Markdown — scanned PDFs, text-layer PDFs, and EPUBs — with images, heading hierarchy, and a nested table of contents.
 
 [TODO: comparison image]
