@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+review.tsv
+*.log
+bad_pages
+work/
+out/
+*.tmp.epub
+
+# Local release-preparation brief
+/book-to-markdown-prep.md
+/.release-prep/
