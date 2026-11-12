@@ -2,6 +2,8 @@
 
 [English](README.md) | **简体中文**
 
+> 开始转换前，最好先在所用 agent 宿主或 API 服务商后台设置硬性的用量或费用上限（如果服务商支持）。这和任务总预算要同时设置：模型可能陷入反复重试或过度审校，导致 token 消耗失控。
+
 供 **Claude Code、Codex 和 pi** 使用的 agent skill，将扫描版 PDF、带文字层的 PDF 和 EPUB 转成干净的 Markdown，保留图片、标题层级和嵌套目录。
 
 把书的位置和输出要求告诉 agent，skill 会指导它完成环境检查、路线判断、转换、OCR 审图、内容整理和最终校验。

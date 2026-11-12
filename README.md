@@ -2,6 +2,8 @@
 
 **English** | [简体中文](README.zh-CN.md)
 
+> Before starting a conversion, set a hard usage or spending limit in your agent host or API provider dashboard if available. Treat this as a safety cap in addition to an agreed task budget: a model can get stuck retrying or over-reviewing and consume many tokens.
+
 An agent skill for **Claude Code, Codex, and pi** that turns scanned PDFs, text-layer PDFs, and EPUBs into clean Markdown, with images, heading hierarchy, and a nested table of contents.
 
 Give your agent a book and an output location. The skill guides it through environment checks, route selection, conversion, OCR review, cleanup, and validation.

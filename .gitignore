@@ -12,3 +12,8 @@ out/
 # Local release-preparation brief
 /book-to-markdown-prep.md
 /.release-prep/
+
+# Local promo project and recording script
+/promo/
+/bilibili-promo-script.md
+
