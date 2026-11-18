@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # epub2md.sh <book.epub> <outdir>
 set -eu
 EPUB="$1"; OUT="$2"

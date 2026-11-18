@@ -13,15 +13,19 @@ TIER=""; NOTES=""
 
 # ---- 1. 算力 ----
 echo "── 算力 ──"
+OCR_READY=1
+CUDA="False"
 if [ ! -x "$PYPKG" ]; then
-  echo "✗ paddleocr 未安装 (找不到 $PYPKG)"
-  echo "  先运行: uv tool install --python 3.12 paddleocr --with paddlepaddle-gpu   # GPU 机"
-  echo "        uv tool install --python 3.12 paddleocr --with paddlepaddle       # CPU/Mac"
-  echo "        uv pip install --python ~/.local/share/uv/tools/paddleocr/bin/python 'paddlex[ocr]' python-docx"
-  exit 1
+  OCR_READY=0
+  echo "⚠️  paddleocr 未安装 (找不到 $PYPKG)"
+  echo "   仅 EPUB / 文字层 PDF 路线可忽略；如需转换扫描版 PDF，请先运行:"
+  echo "   uv tool install --python 3.12 paddleocr --with paddlepaddle-gpu   # GPU 机"
+  echo "   uv tool install --python 3.12 paddleocr --with paddlepaddle       # CPU/Mac"
+  echo "   uv pip install --python ~/.local/share/uv/tools/paddleocr/bin/python 'paddlex[ocr]' python-docx"
+else
+  CUDA=$("$PYPKG" -c "import paddle; print(paddle.device.is_compiled_with_cuda())" 2>/dev/null || echo "错误")
+  echo "paddle CUDA 支持: $CUDA"
 fi
-CUDA=$("$PYPKG" -c "import paddle; print(paddle.device.is_compiled_with_cuda())" 2>/dev/null || echo "错误")
-echo "paddle CUDA 支持: $CUDA"
 
 VRAM=0
 if command -v nvidia-smi > /dev/null 2>&1; then
@@ -40,7 +44,9 @@ echo "RAM: ${RAM}MB"
 [ "$RAM" -lt 16384 ] && NOTES="${NOTES}\n⚠️  RAM<16GB: 默认不要开 --formula (公式模型 warmup 需约 4GB 空闲)"
 
 # 分档（PP 副引擎的配置；主引擎 PaddleOCR-VL 6GB 起可跑，<10GB 自动走 paddleocr_lowvram.py）
-if [ "$CUDA" = "True" ]; then
+if [ "$OCR_READY" -eq 0 ]; then
+  TIER="OCR 未安装（EPUB / 文字层 PDF 路线可用）"
+elif [ "$CUDA" = "True" ]; then
   if [ "$VRAM" -ge 16000 ]; then TIER="full (GPU 大显存): configs/paddlex_full.yaml"
   elif [ "$VRAM" -ge 6000 ]; then TIER="balanced (GPU 中显存): configs/paddlex_balanced.yaml + --precision fp16"
   else TIER="lite (GPU 小显存): configs/paddlex_lite.yaml + --precision fp16"
@@ -85,8 +91,11 @@ fi
 if [ -n "$BOOKSHELF" ]; then
   echo "── 书架预检 ──"
   [ -d "$BOOKSHELF/.stfolder" ] && NOTES="${NOTES}\n⚠️  检测到 Syncthing 同步目录: 删除原文件会传播到所有设备, 成品/删除也会同步(可用于双机协作)"
-  # 同名冲突(Python 按 NFC 归一比较, 避免 macOS NFD 误报)
-  COLLIDE=$("$PYPKG" - "$TARGET" <<'PY'
+  PY_CHECK="$PYPKG"
+  [ "$OCR_READY" -eq 1 ] || PY_CHECK="$(command -v python3 || true)"
+  if [ -n "$PY_CHECK" ]; then
+    # 同名冲突(Python 按 NFC 归一比较, 避免 macOS NFD 误报)
+    COLLIDE=$("$PY_CHECK" - "$TARGET" <<'PY'
 import sys, os, unicodedata
 from collections import defaultdict
 m = defaultdict(set)
@@ -100,9 +109,9 @@ for dirpath, _, files in os.walk(sys.argv[1]):
 print(sum(1 for v in m.values() if len(v) > 1))
 PY
 )
-  [ "$COLLIDE" -gt 0 ] && NOTES="${NOTES}\n⚠️  ${COLLIDE} 组同名 PDF+EPUB: 交付时会互相覆盖, 需在计划中指定优先级(建议 EPUB 路线为准)"
-  # 超宽页抽查(前 5 本)
-  "$PYPKG" - "$TARGET" <<'PY' 2>/dev/null
+    [ "${COLLIDE:-0}" -gt 0 ] && NOTES="${NOTES}\n⚠️  ${COLLIDE} 组同名 PDF+EPUB: 交付时会互相覆盖, 需在计划中指定优先级(建议 EPUB 路线为准)"
+    # 超宽页抽查(前 5 本)
+    "$PY_CHECK" - "$TARGET" <<'PY' 2>/dev/null
 import sys, os, glob
 import pypdfium2 as pdfium
 n = 0
@@ -114,17 +123,22 @@ for p in glob.glob(os.path.join(sys.argv[1], "**/*.pdf"), recursive=True)[:60]:
 if n: print(f"超宽页(>800pt)样例检出: {n} 本 → 这些书需要 --render")
 else: print("超宽页抽查: 未发现(>800pt)")
 PY
+  fi
 fi
 
 # ---- 结论 ----
 echo "================= 推荐 ================="
 echo "PP 配置档位: $TIER"
-CFG=$(echo "$TIER" | grep -o 'configs/[a-z_]*\.yaml' | head -1)
-PREC=$(echo "$TIER" | grep -q fp16 && echo " --precision fp16")
-DEV=$([ "$CUDA" = "True" ] && echo " --device gpu" || echo " --device cpu")
-echo "命令模板（扫描版，双引擎）:"
-echo "  $SKILL_DIR/scripts/pdf_ocr.sh <book.pdf> <work>/vl --engine vl$DEV"
-echo "  $SKILL_DIR/scripts/pdf_ocr.sh <book.pdf> <work>/pp --engine pp --config $SKILL_DIR/$CFG$DEV$PREC"
-echo "  $SKILL_DIR/scripts/crosscheck.py <work>/vl/<书名> <work>/pp/<书名> <work>/review --pdf <book.pdf>"
+if [ "$OCR_READY" -eq 1 ]; then
+  CFG=$(echo "$TIER" | grep -o 'configs/[a-z_]*\.yaml' | head -1)
+  PREC=$(echo "$TIER" | grep -q fp16 && echo " --precision fp16")
+  DEV=$([ "$CUDA" = "True" ] && echo " --device gpu" || echo " --device cpu")
+  echo "命令模板（扫描版，双引擎）:"
+  echo "  $SKILL_DIR/scripts/pdf_ocr.sh <book.pdf> <work>/vl --engine vl$DEV"
+  echo "  $SKILL_DIR/scripts/pdf_ocr.sh <book.pdf> <work>/pp --engine pp --config $SKILL_DIR/$CFG$DEV$PREC"
+  echo "  $SKILL_DIR/scripts/crosscheck.py <work>/vl/<书名> <work>/pp/<书名> <work>/review --pdf <book.pdf>"
+else
+  echo "轻路线可用: epub2md.sh (需 pandoc) / marker_single (需 marker-pdf + poppler)"
+fi
 [ -n "$NOTES" ] && echo "── 注意事项 ──$(echo -e "$NOTES")"
 echo "=============================================="

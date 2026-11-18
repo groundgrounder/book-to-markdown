@@ -52,6 +52,55 @@ Review JSONL: `id,context_sha256,status,reason,evidence`. Evidence is a nonempty
 
 `READY_FOR_FINAL_CHECK` means all **supplied** findings have valid records. It does not prove list completeness, gate execution or semantic correctness. Keep raw, reviewed-exception and unresolved counts separate. Changed inputs invalidate the snapshot; never relabel stale raw reports by overwriting a manifest.
 
+## Re-OCR Patch Workflow (`patch_cleaned.py`)
+
+When an existing cleaned Markdown file has good structure (heading hierarchy, TOC, footnotes, callouts) but its earlier OCR dropped paragraphs or misread characters, keep the cleaned file as the skeleton and patch it from **reviewed** new OCR (`crosscheck.py` → `apply_review.py` first; otherwise VL's own errors are copied in).
+
+In patch mode, set `drop`/`drop-t` sites to `primary` by default after batch-checking `uncovered(span, old_md)`: spans only PP/text-layer has are usually already in `old.md`, diagram labels inside images, or noise. Escalate only what is missing from both VL and `old.md`.
+
+```bash
+python3 scripts/patch_cleaned.py <old.md> "$W/vl/<book_name>" "$W/patch" \
+  [--pages start-end] \
+  --verify "$W/pp/<book_name>" "$W/review/sites.tsv" \
+  --careful "$W/review/unaligned.txt"
+```
+
+- `--pages start-end`: skip front/back appendix pages intentionally omitted from `old.md`.
+- `--verify`: apply a character change only if PP agrees at that spot or image review decided it (protects VL-only unaligned regions such as tables from VL's silent rewrites).
+- `--careful`: on pages listed in `unaligned.txt`, apply insertions only and route every character fix to `skipped.tsv`.
+
+### Insertion and Character-Fix Guards
+
+- **Dash pre-pass**: converts `X一Y` → `X—Y` in `old.md` wherever the new OCR has a dash between Chinese characters (prevents PP's `—→一` habit from breaking alignment).
+- **Span insertions**: spans present in new OCR and nowhere in `old.md` (checked order-insensitively across the whole file so moved chapter-end footnotes are not treated as missing) are inserted at unique anchors wrapped in `<!-- 补 pNNNN -->…<!-- /补 -->` (or `<!-- 补 pNNNN 脚注 -->` after their owning paragraph, extended to line end).
+  - *Anchors*: require unique pre/post anchors in the `old.md` window. An anchor <14 chars must also roughly match on its outer side; on conflict, trust the ≥14-char anchor; if both are short, write `anchorconflict` to `skipped.tsv`.
+  - *Punctuation*: anchors match letters and digits only; when the punctuation run at the insertion point equals `before_punct + after_punct`, replace the whole run so trailing periods are not stranded as standalone paragraphs.
+  - *Inline vs. block*: start a new paragraph only when the new OCR has blank lines on both sides **and** `old.md` ends a sentence before the insertion point (VL wraps lines at page edges).
+  - *Formulas*: spans containing LaTeX or inside `$$` are skipped as `formula` (`old.md` retains formula images).
+- **Deferred items (`skipped.tsv`)**: headings, multi-character deletions, unanchored spans, and weak alignments (`weakalign`) go to `skipped.tsv`. Footnote marker differences (`[^ch5-1]` vs `①`) are ignored.
+- **Character-fix guards**:
+  - Locate each page by clustered hits before advancing the cursor (prevents scattered TOC matches from jumping the cursor to the back of the book).
+  - Require ≥10 identical characters on both sides, or ≥4 characters each side **with** corroboration (PP agreement or review decision).
+  - Never insert digit runs mid-sentence or right after a year (`Wachtel,1986` + `18` margin page numbers); do delete 2–3 digit margin numbers flanked by Chinese text.
+  - Never insert `一` where `old.md` already has `—`; when `—` replaces `一`, replace only the dash.
+  - Inside table rows, limit edits to ≤2 characters and never insert superscripts (`$ ^{1} $`) as body text.
+
+### Post-Patch Gates (run all four after `format_inserts.py apply`)
+
+Coverage checks (`uncovered = 0`) are order- and position-blind: books can pass coverage while still containing stranded periods, mid-sentence paragraph splits, wrong-anchor inserts, or silently blocked review decisions. Run all four gates on the unchanged final candidate and inspect every body-page hit:
+
+```bash
+python3 scripts/seam_check.py <new.md> <old.md> "$W/vl/<book>" "$W/pp/<book>"
+python3 scripts/align_check.py <new.md> "$W/vl/<book>" "$W/pp/<book>" --old <old.md>
+python3 scripts/decision_check.py <new.md> "$W/review/sites.tsv"
+python3 scripts/new_doubles.py <old.md> <new.md>
+```
+
+- `seam_check.py`: flags `punct`/`open`/`seam`/`fnote`/`latex`/`dash` candidates (not automatic fixes); inspect and handle joins via `join_split.py`.
+- `align_check.py`: aligns page-by-page on ≥8-character anchors (`missing` with `pp=1` indicates a likely drop; `moved` flags misplaced inserts; expect column-order noise on index/bibliography pages).
+- `decision_check.py`: verifies every review decision landed in `<new.md>` (inspect blocked decisions and double-check uncertain crops with `recheck_sheets.py` since human/subagent review still has ~5–10% error).
+- `new_doubles.py`: catches newly introduced doubled characters (`老师师`, `即将将`, `兄兄弟`) caused by VL page-break repeats or misread review glyphs, ignoring legitimate reduplication.
+
 ## Bounded Exact Edits
 
 Bound a typo to its sentence; reconstruct a scrambled table/callout as a complete logical object. Confirm both printed edges and inspect surrounding prose. A box can sit between `雇` and `员`. A repeated name or next heading found by unconstrained search is not a safe end boundary.

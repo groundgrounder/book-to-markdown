@@ -91,9 +91,9 @@ OCR text mixes half/full-width brackets and straight/curly quotes arbitrarily.
 A large book's cleanup starts with deterministic findings and bounded evidence packets. Read [patch-control.md](patch-control.md) for cost, exact patches and review states. Parallel agents are optional and require authorization; do not send whole chapters for sparse corrections.
 
 - Group findings by source region (front/tail separate); a worker proposes exact replacements in its packet, never edits the shared candidate. Cap packet size; uncertain glyphs/layout go to image review.
-- Per chunk, before merging: `fidelity_diff.py <chunk-clean> <chunk-raw>` — every 无痕删除/无痕新增 eyeballed and classified as an expected move/join, or fixed. On 10MB-class files fidelity_diff is O(n²) and times out — use transform-replay instead (SKILL.md pitfall 10).
+- Per chunk, before merging: `fidelity_diff.py <chunk-clean> <chunk-raw>` — every 无痕删除/无痕新增 eyeballed and classified as an expected move/join, or fixed. On 10MB-class files `fidelity_diff.py` is O(n²) and times out — script the edit operations, replay them on the `.bak`, and byte-compare with the new file instead.
 - Recombine chunks in order, then verify the chunks and the main file agree.
-- **并行 agent 纪律**（多 agent 同时改一个书架时同样适用）: 每个 agent 的全量报告写入独立文件（`<任务名>.md`，文件名在任务契约里写死——曾发生 Bin46 覆盖 Bin45 报告的事故），IRC/回传只要一行总结；任务里给的扫描计数一律标注"是估计值，按实地全量修"（正则预扫只给下限，曾报 x1 实地 x12）。
+- **并行 agent 纪律**（多 agent 同时改一个书架时同样适用）: 每个 agent 的全量报告写入独立文件（`<任务名>.md`，文件名在任务契约里写死，避免并发写入彼此覆盖），回传主会话只要一行总结；任务里给的扫描计数一律标注"是估计值，按实地全量修"（正则预扫只给下限，曾报 x1 实地 x12）。
 - Keep the raw `.bak` until delivery — it is the only arbiter of conservation.
 
 ## 10. Remove page anchors

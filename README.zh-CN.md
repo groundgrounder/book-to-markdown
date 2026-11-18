@@ -16,7 +16,7 @@
 
 此外还支持可断点续跑的书架批量处理、用审图后的 OCR 修补现有 Markdown，以及 Markdown → EPUB 导出。
 
-**试点结果：** 3 本扫描教材、共 29 页的试点经过双引擎审图后，整段正文丢失率为 0%。小规模试点不能保证输出完全无误；两个引擎共同误读或其他与原书不符的内容，仍需对照原书抽查。
+**实战与试点：** 批量工作流已在 277 本 / 8.7 万页实际书库中跑通；逐页对照原图定金标准的试点（3 本扫描教材、29 页）中，双引擎审图后整段正文丢失率从单引擎旧版面模型的 9.2% 降至 0%。两引擎共同误读和原书错印仍需对照原书抽查。
 
 ## 快速开始
 
@@ -30,8 +30,8 @@ git clone https://github.com/groundgrounder/book-to-markdown.git
 
 ```text
 将 /absolute/path/to/book-to-markdown 中的 book-to-markdown skill
-安装到你的个人 skills 目录。保留 SKILL.md、SKILL_DEV.md、scripts/、
-references/、configs/ 和 LICENSE，并保持它们的相对路径。
+安装到你的个人 skills 目录。保留 SKILL.md、scripts/、references/、
+configs/ 和 LICENSE，并保持它们的相对路径。
 完成后告诉我 skill 是否已可用，以及如何调用。
 ```
 
@@ -51,7 +51,7 @@ references/、configs/ 和 LICENSE，并保持它们的相对路径。
 bash /absolute/path/to/book-to-markdown/scripts/preflight.sh /absolute/path/to/books
 ```
 
-预检不会修改文件，只报告硬件、可用工具、磁盘空间和建议的 OCR 配置，不会安装依赖。首次在新机器上使用时，按[安装指南](references/setup.md)配置所选路线需要的工具。
+预检不会修改文件，只报告硬件、可用工具、磁盘空间和建议的 OCR 配置（未装 OCR 环境时会提示，不会阻塞 EPUB 或文字层 PDF 路线），不会安装依赖。首次在新机器上使用时，按[安装指南](references/setup.md)配置所选路线需要的工具。
 
 ### 3. 转换第一本书
 
@@ -89,25 +89,26 @@ EPUB 也可以使用同样的请求。具体命令由 agent 执行。处理扫�
 
 ## 运行环境
 
-- agent 需要能访问原书、执行终端命令，并写入输出目录；扫描版审图还需要能查看图片。
-- Bash 和 Python；OCR 环境通过 uv 配置 Python 3.12。
-- 上表列出的各路线工具；模型会在首次使用时下载。
-- PaddleOCR-VL 推荐使用至少 6 GB 显存的 GPU；也可使用速度较慢的 pp_structurev3 CPU 路线。
+- agent 需要能访问原书、执行 macOS 或 Linux 终端命令（Windows 需通过 WSL），并写入输出目录；扫描版审图还需要能查看图片。
+- Bash 和 Python。**只有扫描版 PDF 需要通过 `uv` 配置 Python 3.12、PaddleOCR 和 PaddlePaddle**；只转 EPUB（`pandoc`）或带文字层的 PDF（`marker-pdf` + Poppler）无需安装这套依赖或 GPU。
+- `marker` 与 OCR 模型会在首次使用时下载。
+- PaddleOCR-VL 推荐使用至少 6 GB 显存的 GPU；也可在 CPU 上跑 `pp_structurev3`（约 10–30 秒/页，更适合小册子或少量页面）。
 
-agent 的使用权限以及模型／API 费用取决于你选择的宿主和服务商。
+模型调用权限与 API 费用取决于你选择的宿主和服务商。
 
 ## 文档
 
-[SKILL.md](SKILL.md) 是 agent 入口，[SKILL_DEV.md](SKILL_DEV.md) 包含完整工作流与质量门禁。`references/` 中的指南保留原有语言，主要为中文：
+[SKILL.md](SKILL.md) 是 agent 入口，包含路线判断、核心命令和质量门禁。各路线详细指引按需放在 `references/` 中（保留原有语言，主要为中文）：
 
 - [setup.md](references/setup.md) — 首次环境配置。
+- [ocr-pipeline.md](references/ocr-pipeline.md) — 扫描版双引擎流程、低显存/CPU 分档、看门狗与审图工作流。
 - [postprocess-pdf.md](references/postprocess-pdf.md) / [postprocess-epub.md](references/postprocess-epub.md) — 内容整理和复核清单。
 - [batch.md](references/batch.md) — 可断点续跑的书架批量处理。
 - [patch-control.md](references/patch-control.md) — 用审图后的 OCR 修补现有 Markdown。
 
 ## 阅读转换结果
 
-[Hortus](https://github.com/groundgrounder/Hortus) 可以将大型 Mermaid 图表分栏显示，让周围的文字保持可读。
+如果你想在 macOS 上阅读转换后的长篇 Markdown 书籍，[Hortus](https://github.com/groundgrounder/Hortus) 是一款原生 Mac Markdown 阅读器（Rust 核心、无 WebView），在笔记或书籍包含大型 Mermaid 图表时也能分栏渲染以保持周围文字可读。
 
 ## 许可证
 

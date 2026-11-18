@@ -1,7 +1,7 @@
-#!/bin/bash
-# md2epub.sh <book.md> — 由 markdown 生成同名 epub (图片内嵌, 按 H2 分章)
+#!/usr/bin/env bash
+# md2epub.sh <book.md> [--mathjax] — 由 markdown 生成同名 epub (图片内嵌, 按 H2 分章)
 # 阅读器固定 -f gfm: 本 skill 的 md 均为 gfm 产出, 默认 markdown 阅读器会静默吞掉部分 <img>(无警告)
-# 数学书(书名含数学/代数/几何/分析)自动走 MathJax, 避免 texmath 在大公式量上卡死
+# 数学书(书名含数学/代数/几何/分析，或显式传 --mathjax)走 MathJax, 避免 texmath 在大公式量上卡死
 set -eu
 MD="$1"
 BASE="${MD%.md}"
@@ -13,9 +13,13 @@ LANG="zh-CN"
 python3 -c "import re,sys; sys.exit(0 if re.search(r'[一-鿿]', open('$MD',encoding='utf-8').read(20000)) else 1)" 2>/dev/null || LANG="en"
 
 MATHFLAG=""
-case "$NAME" in
-  *数学*|*代数*|*几何*|*分析*|*微积*|*概率*|*方程*|*物理*) MATHFLAG="--mathjax" ;;
-esac
+if [ "${2:-}" = "--mathjax" ]; then
+  MATHFLAG="--mathjax"
+else
+  case "$NAME" in
+    *数学*|*代数*|*几何*|*分析*|*微积*|*概率*|*方程*|*物理*) MATHFLAG="--mathjax" ;;
+  esac
+fi
 
 COVERFLAG=""
 [ -f "$DIR/cover.jpg" ] && COVERFLAG="--epub-cover-image=$DIR/cover.jpg"

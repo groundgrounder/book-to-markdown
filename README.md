@@ -16,7 +16,7 @@ An agent skill for **Claude Code, Codex, and pi**. Give your agent a book and an
 
 The skill also supports resumable bookshelf batches, reviewed re-OCR patches for existing Markdown, and Markdown → EPUB export.
 
-**Pilot result:** after dual-engine review, a 3-textbook, 29-page pilot had 0% paragraph loss. This small pilot is not a guarantee of error-free output; shared OCR mistakes and other source mismatches still require spot-checks against the book.
+**Pilot & batch experience:** validated in a 277-book / 87k-page batch workflow, with a page-by-page gold-standard pilot (3 scanned textbooks, 29 pages) reducing paragraph loss from 9.2% (single-engine legacy layout) to 0% after dual-engine review. Shared OCR mistakes and original misprints still require spot-checks against the book.
 
 ## Quick start
 
@@ -30,8 +30,8 @@ Then ask your agent:
 
 ```text
 Install the book-to-markdown skill from /absolute/path/to/book-to-markdown
-into your personal skills directory. Keep SKILL.md, SKILL_DEV.md, scripts/,
-references/, configs/, and LICENSE together with their relative paths intact.
+into your personal skills directory. Keep SKILL.md, scripts/, references/,
+configs/, and LICENSE together with their relative paths intact.
 Tell me when it is available and how to invoke it.
 ```
 
@@ -51,7 +51,7 @@ For one-off use without installation, ask an agent with local file and shell acc
 bash /absolute/path/to/book-to-markdown/scripts/preflight.sh /absolute/path/to/books
 ```
 
-Preflight is read-only: it reports hardware, available tools, disk space, and recommended OCR settings. It does not install dependencies. On a new machine, follow the [setup guide](references/setup.md) for the tools needed by your route.
+Preflight is read-only: it reports hardware, available tools, disk space, and recommended OCR settings (and warns without blocking EPUB or text-layer PDF routes if OCR tools are absent). It does not install dependencies. On a new machine, follow the [setup guide](references/setup.md) for the tools needed by your route.
 
 ### 3. Convert your first book
 
@@ -90,25 +90,26 @@ Use reviewed OCR, back up the original, and validate every changed region.
 
 ## Requirements
 
-- An agent with access to your books, a shell, and an output directory; scanned-PDF review also requires image inspection.
-- Bash and Python. The OCR setup uses Python 3.12 via uv.
-- The route-specific tools listed above. Models download on first use.
-- For PaddleOCR-VL, a GPU with at least 6 GB VRAM is recommended. The pp_structurev3 CPU fallback is slower.
+- An agent with access to your books, a macOS or Linux shell (WSL on Windows), and an output directory; scanned-PDF review also requires image inspection.
+- Bash and Python. **Only scanned PDFs require Python 3.12 (via `uv`), PaddleOCR, and PaddlePaddle**—EPUB (`pandoc`) and text-layer PDF (`marker-pdf` + Poppler) routes do not.
+- Models for `marker` and OCR download on first use.
+- For PaddleOCR-VL, a GPU with at least 6 GB VRAM is recommended. `pp_structurev3` runs on CPU at ~10–30 s/page, which is best suited for short books or sample pages.
 
 Agent access and model/API costs depend on your chosen host and provider.
 
 ## Documentation
 
-[SKILL.md](SKILL.md) is the agent entry point. [SKILL_DEV.md](SKILL_DEV.md) contains the complete workflow and quality gates. The guides in `references/` retain their original language, mostly Chinese:
+[SKILL.md](SKILL.md) is the agent entry point with route selection, core commands, and quality gates. Route-specific details live in `references/` (which retain their original language, mostly Chinese):
 
 - [setup.md](references/setup.md) — first-time environment setup.
+- [ocr-pipeline.md](references/ocr-pipeline.md) — dual-engine scanned-PDF workflow, low-VRAM/CPU tiers, watchdog, and image review.
 - [postprocess-pdf.md](references/postprocess-pdf.md) / [postprocess-epub.md](references/postprocess-epub.md) — cleanup and review checklists.
 - [batch.md](references/batch.md) — resumable bookshelf processing.
 - [patch-control.md](references/patch-control.md) — patching previously cleaned Markdown with reviewed OCR.
 
 ## Reading the output
 
-[Hortus](https://github.com/groundgrounder/Hortus) renders large Mermaid diagrams in columns so the surrounding text stays readable.
+For reading long converted Markdown books on macOS, [Hortus](https://github.com/groundgrounder/Hortus) is a native Mac Markdown reader (Rust core, no WebView) that also renders large Mermaid diagrams in columns so surrounding notes stay readable.
 
 ## License
 
